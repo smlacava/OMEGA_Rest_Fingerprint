@@ -1,26 +1,86 @@
 bsDir = 'C:\Users\simon\OneDrive\Desktop\Ricerca\EEGLab\';
 inDir = 'D:\MEG\OMEGA_OpenNeuro';
 ProtocolName = 'Omega_Study';
+epTime = 15;
+nEpochs = 5;
+resample = 240;
+EventsTimeRange = [-0.1, 3];
+srcSubject = 'sub-0002';
 
-rawFiles = initialization(ProtocolName, inDir);
+scout = 'Desikan-Killiany';
+ROIs = {'bankssts L','bankssts R','caudalanteriorcingulate L',...
+        'caudalanteriorcingulate R','caudalmiddlefrontal L',...
+        'caudalmiddlefrontal R','cuneus L','cuneus R',...
+        'entorhinal L','entorhinal R','frontalpole L','frontalpole R',...
+        'fusiform L','fusiform R','inferiorparietal L',...
+        'inferiorparietal R','inferiortemporal L','inferiortemporal R',...
+        'insula L','insula R','isthmuscingulate L',...
+        'isthmuscingulate R','lateraloccipital L','lateraloccipital R',...
+        'lateralorbitofrontal L','lateralorbitofrontal R','lingual L',...
+        'lingual R','medialorbitofrontal L','medialorbitofrontal R',...
+        'middletemporal L','middletemporal R','paracentral L',...
+        'paracentral R','parahippocampal L','parahippocampal R',...
+        'parsopercularis L','parsopercularis R','parsorbitalis L',...
+        'parsorbitalis R','parstriangularis L','parstriangularis R',...
+        'pericalcarine L','pericalcarine R','postcentral L',...
+        'postcentral R','posteriorcingulate L','posteriorcingulate R',...
+        'precentral L','precentral R','precuneus L','precuneus R',...
+        'rostralanteriorcingulate L','rostralanteriorcingulate R',...
+        'rostralmiddlefrontal L','rostralmiddlefrontal R',...
+        'superiorfrontal L','superiorfrontal R','superiorparietal L',...
+        'superiorparietal R','superiortemporal L','superiortemporal R',...
+        'supramarginal L','supramarginal R','temporalpole L',...
+        'temporalpole R','transversetemporal L','transversetemporal R'};
+
+[rawFiles, fs, t] = initialization(ProtocolName, inDir, bsDir, epTime, ...
+    nEpochs, resample);
 filtFiles = preprocessing(rawFiles);
 cleanFiles = artifact_cleaning();
-sourceFiles = source_estimation(filtFiles, cleanFiles);
+importFiles = import_raws(cleanFiles, t, epTime, EventsTimeRange, fs, ...
+    nEpochs);
+sourceFiles = source_estimation(importFiles);
+scoutFiles = scout_extraction(sourceFiles, scout, ROIs);
+newSourceFiles = sources_projection(sourceFiles, srcSubject, bsDir, ...
+    ProtocolName);
+projectedScoutFiles = scout_extraction_reprojected(newSourceFiles, ...
+    scout, ROIs, srcSubject, epTime);
 %psdSourcesFiles = power_maps(sourceFiles);
+disp(1)
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Sets the protocol, loads M/EEGs, and estimates time-frequency parameters
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-function rawFiles = initialization(ProtocolName, inDir)
+function [rawFiles, fs, t] = initialization(ProtocolName, inDir, bsDir, ...
+    epTime, nEpochs, resample)
     if ~brainstorm('status')
         brainstorm nogui
     end
-    gui_brainstorm('Delete[Lorg.brainstorm.tree.BstNode;@133a3020Protocol', ProtocolName);
+    try
+        gui_brainstorm('DeleteProtocol', ProtocolName);
+    catch
+    end
     gui_brainstorm('CreateProtocol', ProtocolName, 0, 0);
     bst_report('Start');
     rawFiles = bst_process('CallProcess', 'process_import_bids', [], ...
         [], 'bidsdir', {inDir, 'BIDS'}, 'nvertices', 15000, ...
         'channelalign', 0);
+    t = epTime*nEpochs;
+    fs = resample;
+    for i = 1:length(rawFiles)
+        if contains(string(rawFiles(i).FileName), "sub-0")
+            load(strcat(bsDir, filesep, ProtocolName, filesep, 'data', ...
+                filesep, rawFiles(i).FileName))
+            fs = min([F.prop.sfreq, fs]);
+            t = min([t, F.header.gSetUp.epoch_time]);
+        end
+    end
+    t = floor(t/epTime)*epTime;
 end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Initial preprocessing required in OMEGA
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function filtFiles = preprocessing(rawFiles)
     rawFiles = bst_process('CallProcess', 'process_headpoints_remove', ...
@@ -34,6 +94,9 @@ function filtFiles = preprocessing(rawFiles)
         'target', 2);
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Filters a time window through a notch filter and a highpass filter
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function filtered = filter(rawFiles)
     aux = bst_process('CallProcess', 'process_notch', rawFiles, [], ...
@@ -45,6 +108,10 @@ function filtered = filter(rawFiles)
         'attenuation', 'strict', 'mirror',  0, 'useold', 0, 'read_all', 1);
     bst_process('CallProcess', 'process_delete', [aux], [], 'target', 2);
 end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Removes ECG artifacts
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function cleanFiles = artifact_cleaning()
     filtered = bst_process('CallProcess', 'process_select_files_data', ...
@@ -63,25 +130,144 @@ function cleanFiles = artifact_cleaning()
         'target', 2, 'modality', 1);
 end
 
-function sourceFiles = source_estimation(filtFiles, cleanFiles)
-    noiseFiles = bst_process('CallProcess', 'process_select_tag', ...
-        filtFiles, [], 'tag', 'task-noise', 'search', 1, 'select', 1); 
-    bst_process('CallProcess', 'process_noisecov', noiseFiles, [], ...
-        'baseline', [], 'sensortypes', 'MEG', 'target', 1, ... 
-        'dcoffset', 1, 'identity', 0, 'copycond', 1, 'copysubj', 1, ...
-        'copymatch', 1, 'replacefile', 1);
-    bst_process('CallProcess', 'process_headmodel', cleanFiles, [], ...
-        'sourcespace', 1, 'meg', 3);
-    sourceFiles = bst_process('CallProcess', 'process_inverse_2018', ...
-        cleanFiles, [], 'output', 2, 'inverse', ...
-        struct('Comment', 'dSPM: MEG', 'InverseMethod', 'minnorm', ...
-        'InverseMeasure', 'dspm2018', 'SourceOrient', {{'fixed'}}, ...
-        'Loose', 0.2, 'UseDepth', 1, 'WeightExp', 0.5, ...
-        'WeightLimit', 10, 'NoiseMethod', 'reg', 'NoiseReg', 0.1, ...
-        'SnrMethod', 'fixed', 'SnrRms', 1e-06, 'SnrFixed', 3, ...
-         'ComputeKernel', 1, 'DataTypes', {{'MEG'}}));
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Imports time windows from each subject's M/EEG
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function importFiles = import_raws(files, t, epTime, EventsTimeRange, resample, nEpochs)
+    N = length(files);
+    TimeRange = [0, t];
+    importFiles = {};
+    data = struct();
+    data.iStudy = files(1).iStudy+N;
+    data.item = 0;
+    data.FileName = '';
+    data.FileType = 'data';
+    data.Comment = '';
+    data.Condition = '';
+    data.SubjectFile = '';
+    data.SubjectName = '';
+    data.DataFile = [];
+    data.ChannelFile = '';
+    data.ChannelTypes = {};
+    for i = 1:N
+        auxFiles = import_raw_brainstorm(files(i).FileName, TimeRange, ...
+            epTime, EventsTimeRange, resample, nEpochs);
+        subFiles = [];
+        data.iStudy = data.iStudy+i;
+        data.Condition = split(string(files(i).Condition), "@raw");
+        data.Condition = char(data.Condition(2));
+        data.ChannelTypes = files(i).ChannelTypes;
+        data.SubjectFile = files(i).SubjectFile;
+        data.ChannelFile = split(string(files(i).ChannelFile), "@raw");
+        data.ChannelFile = char(strcat(data.ChannelFile(1), ...
+            data.ChannelFile(2)));
+        data.SubjectName = files(i).SubjectName;
+        M = min([nEpochs, length(auxFiles)]);
+        for j = 1:M
+            data.item = j;
+            block = string(j);
+            if length(char(block)) == 1
+                block = strcat("00", block);
+            elseif length(char(block)) == 2
+                block = strcat("0", block);
+            end
+            data.FileName = char(strcat(data.SubjectName, filesep, ...
+                data.SubjectName, ...
+                "_ses-01_task-rest_run-01_meg_notch_high", filesep, ...
+                "data_block", block, ".mat"));
+            data.Comment = char(strcat("Raw (", string(epTime*(j-1)), ...
+                ".00s,", string(epTime*j), ".00s)"));
+            subFiles = [subFiles, data];
+        end
+        importFiles = [importFiles, subFiles];
+    end
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Estimates noise covariance, head model and sources from each time window
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function sourceFiles = source_estimation(importFiles)
+    sourceFiles = {};
+    for i = 1:length(importFiles)
+        bst_process('CallProcess', 'process_noisecov', importFiles{i}, ...
+            [], 'baseline', [], 'sensortypes', 'MEG', 'target', 1, ... 
+            'dcoffset', 1, 'identity', 0, 'copycond', 1, 'copysubj', 1, ...
+            'copymatch', 1, 'replacefile', 1);
+        bst_process('CallProcess', 'process_headmodel', ...
+            importFiles{i}, [], 'sourcespace', 1, 'meg', 3);
+        sourceFiles = [sourceFiles, bst_process('CallProcess',...
+            'process_inverse_2018', importFiles{i}, [], 'output', 2, ...
+            'inverse', struct('Comment', 'dSPM: MEG', 'InverseMethod', ...
+            'minnorm',  'InverseMeasure', 'dspm2018', 'SourceOrient', ...
+            {{'fixed'}}, 'Loose', 0.2, 'UseDepth', 1, 'WeightExp', 0.5, ...
+            'WeightLimit', 10, 'NoiseMethod', 'reg', 'NoiseReg', 0.1, ...
+            'SnrMethod', 'fixed', 'SnrRms', 1e-06, 'SnrFixed', 3, ...
+            'ComputeKernel', 1, 'DataTypes', {{'MEG'}}))];
+    end
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Projects sources of a subject to the cortex of another subject
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function newSourceFiles = sources_projection(sourceFiles, srcSubject, ...
+    bsDir, ProtocolName)
+    
+    files = dir(strcat(bsDir, filesep, ProtocolName, filesep, 'data', ...
+        filesep, srcSubject, filesep, srcSubject, ...
+        '_ses-01_task-rest_run-01_meg_notch_high'));
+    res = {};
+    for i = 1:length(files)
+        if contains(string(files(i).name), "results")
+            res = [res, strcat(srcSubject, filesep, srcSubject, ...
+                    '_ses-01_task-rest_run-01_meg_notch_high', filesep, ...
+                    files(i).name)];
+        end
+    end
+    newSourceFiles = {};
+    N = length(res);
+    for i = 1:length(sourceFiles)
+        aux = sourceFiles{i};
+        if strcmpi(string(aux(1).SubjectName), string(srcSubject))
+            continue;
+        end
+        auxProjected = {};
+        for j = 1:N
+            destSurfFile = strcat(aux(1).SubjectName, filesep, ...
+                'tess_cortex_pial_low.mat');
+            auxProjected = [auxProjected, ...
+                bst_project_sources({res{j}}, destSurfFile)];
+        end
+        newSourceFiles = [newSourceFiles, {auxProjected}];
+    end
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Extracts scouts from sources files
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function scoutFiles = scout_extraction(sourceFiles, scout, ROIs)
+    scoutFiles = {};
+    for i = 1:length(sourceFiles)
+        aux = [];
+        auxSourceFiles = sourceFiles{i};
+        for j = 1:length(sourceFiles{i})
+            aux = [aux, bst_process('CallProcess', ...
+                'process_extract_scout', auxSourceFiles(j), [], ...
+                'timewindow', [], 'scouts', {scout, ROIs}, ...
+                'scoutfunc', 1, 'isflip', 1, 'isnorm', 0, ...
+                'concatenate', 1, 'save', 1, 'addrowcomment', 1, ...
+                'addfilecomment', 1)];
+        end
+        scoutFiles = [scoutFiles, aux];
+    end
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Compute power maps (NOT USED)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function psdSourcesFiles = power_maps(sourceFiles)
     freqs = {{'delta', '2, 4', 'mean'; 'theta', '5, 7', 'mean'; ...
@@ -105,22 +291,116 @@ function psdSourcesFiles = power_maps(sourceFiles)
         'matchrows', 0, 'iszerobad', 0);
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Extracts scouts from reprojected sources
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+function projectedScoutFiles = ...
+    scout_extraction_reprojected(sourceFiles,  scout, ROIs, srcSubject, ...
+    epTime, iStudy)
+    if nargin < 6
+        iStudy = 100;
+    end
+    sProcess = struct();
+    sProcess.Function = @process_extract_scout;
+    sProcess.Comment = 'Scouts time series';
+    sProcess.FileTag = '';
+    sProcess.Description = ...
+        'https://neuroimage.usc.edu/brainstorm/Tutorials/Scouts';
+    sProcess.Category = 'Custom';
+    sProcess.SubGroup = 'Extract';
+    sProcess.Index = 352;
+    sProcess.isSeparator = 0;
+    sProcess.InputTypes = {'results', 'timefreq'};
+    sProcess.OutputTypes = {'matrix', 'matrix'};
+    sProcess.nInputs = 1;
+    sProcess.nOutputs = 1;
+    sProcess.nMinFiles = 1;
+    sProcess.isPaired = 0;
+    sProcess.isSourceAbsolute = 0;
+    sProcess.processDim = [];
 
-function set_common_head_model(bsDir, ProtocolName, subject_head, ...
-    session, rest_run, pattern)
-    head_model = strcat(subject_head, '/@raw', subject_head, '_ses-', ...
-        session, '_task-rest_run-', rest_run, ...
-        '_meg_notch_high/headmodel_surf_os_meg.mat');
-    dataDir = strcat(bsDir, filesep, ProtocolName, filesep, 'data', ...
-        filesep);
-    cases = dir(fullfile(dataDir));
-    for i = 1:length(cases)
-        if contains(cases(i).name, pattern)
-            fName = strcat(dataDir, cases(i).name);
-            aux = load(fName);
-            aux.HeadModelFile = head_model;
-            save(fName,'-struct','aux')
+    sProcess.options = struct();
+    sProcess.options.timewindow = struct();
+    sProcess.options.scouts = struct();
+    sProcess.options.scoutfunc = struct();
+    sProcess.options.isflip = struct();
+    sProcess.options.isnorm = struct();
+    sProcess.options.concatenate = struct();
+    sProcess.options.save = struct();
+    sProcess.options.addrowcomment = struct();
+    sProcess.options.addfilecomment = struct();
+
+    sProcess.options.timewindow.Comment = 'Time window:';
+    sProcess.options.timewindow.Type = 'timewindow';
+    sProcess.options.timewindow.Value = {[], 's', []};
+
+    sProcess.options.scouts.Comment = '';
+    sProcess.options.scouts.Type = 'scout';
+    sProcess.options.scouts.Value = {scout, ROIs};
+
+    sProcess.options.scoutfunc.Comment = {'Mean', 'Max', 'PCA', 'Std', ...
+        'All', 'Scout function:'};
+    sProcess.options.scoutfunc.Type = 'radio_line';
+    sProcess.options.scoutfunc.Value = 1;
+    
+    sProcess.options.isflip.Comment = ...
+        'Flip the sign of sources with opposite directions';
+    sProcess.options.isflip.Type = 'checkbox';
+    sProcess.options.isflip.Value = 1;
+    sProcess.options.isflip.InputTypes = {'results'};
+
+    sProcess.options.isnorm.Comment = ...
+        'Unconstrained sources: Norm of the three orientations (x,y,z)';
+    sProcess.options.isnorm.Type = 'checkbox';
+    sProcess.options.isnorm.Value = 0;
+    sProcess.options.isnorm.InputTypes = 'results';
+
+    sProcess.options.concatenate.Comment = ...
+        'Concatenate output in one unique matrix';
+    sProcess.options.concatenate.Type = 'checkbox';
+    sProcess.options.concatenate.Value = 1;
+
+    sProcess.options.save.Comment = '';
+    sProcess.options.save.Type = 'ignore';
+    sProcess.options.save.Value = 1;
+
+    sProcess.options.addrowcomment.Comment = '';
+    sProcess.options.addrowcomment.Type = 'ignore';
+    sProcess.options.addrowcomment.Value = 1;
+
+    sProcess.options.addfilecomment.Comment = '';
+    sProcess.options.addfilecomment.Type = 'ignore';
+    sProcess.options.addfilecomment.Value = 1;
+    
+    sInputs = struct();
+    sInputs.iStudy = iStudy+1;
+    sInputs.iItem = 1;
+    sInputs.FileType = 'results';
+    sInputs.DataFile = [];
+    sInputs.ChannelFile = [];
+    sInputs.ChannelTypes = [];
+    projectedScoutFiles = {};
+    for i = 1:length(sourceFiles)
+        auxFiles = sourceFiles{i};
+        name = split(string(auxFiles{1}), '/');
+        if length(name) == 1
+            name = split(auxFiles, '\');
         end
+        sInputs.SubjectName = char(name(1));
+        sInputs.SubjectFile = char(strcat(name(1), '/brainstormsubject.mat'));
+        sInputs.Condition = char(name(2));
+        subFiles = {};
+        for j = 1:length(auxFiles)
+            sInputs.iStudy=sInputs.iStudy+1;
+            sInputs.Comment = char(strcat(srcSubject, '/Raw (', ...
+                string((j-1)*epTime), '.00s,', string(j*epTime), '.00s)'));
+            sInputs.FileName = auxFiles{j};
+            subFiles = [subFiles, ...
+                bst_process('Run', sProcess, sInputs, [], 1)];
+        end
+        projectedScoutFiles = [projectedScoutFiles, subFiles];
     end
 end
+    
+    
