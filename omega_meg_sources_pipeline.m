@@ -1,3 +1,13 @@
+%% PIPELINE
+% 1) Data is imported
+% 2) Data is preprocessed (notch and high-pass filtered at 0.3 Hz, cleaned
+%    from ECG artifacts
+% 3) Preprocessed data is resampled and divided into epochs
+% 4) Sources are estimated from each epoch
+% 5) Scouts are extracted from such sources
+% 6) Sources are reprojected from a subject onto other subject's cortices
+% 7) Scouts are extracted from reprojected sources
+
 bsDir = 'C:\Users\simon\OneDrive\Desktop\Ricerca\EEGLab\';
 inDir = 'D:\MEG\OMEGA_OpenNeuro';
 ProtocolName = 'Omega_Study';
@@ -49,6 +59,31 @@ disp(1)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Sets the protocol, loads M/EEGs, and estimates time-frequency parameters
+% • Initializes brainstorm without GUI
+% • Deletes previous protocol with the same name (ProtocolName)
+% • Creates the protocol (bsDir\ProtocolName)
+% • Imports data stored in inDir
+% • Computes the minimum sampling frequency value among the ones related to
+%   the imported files and the input sampling frequency (resample)
+% • Find the minimum time window among the ones related to the imported
+%   files and the one equal to the input number of epochs (epTime*nEpochs)
+% • Returns the structures related to the imported files (rawFiles), the
+%   minimum resampling frequency (fs) and the minimum time window (t)
+%
+% INPUT:
+% • ProtocolName is the name of the protocol which will be used
+% • inDir is the path to the data files
+% • bsDir is the directory containing the Brainstorm protocols
+% • epTime is the time related to each epoch
+% • nEpochs is the required number of epochs (if available in all the
+%   files)
+% • resample is the resampling frequency (if lower to the ones related to
+%   the input files)
+%
+% OUTPUT:
+% • rawFiles is the array of structures related to the imported files
+% • fs is the resampling frequency (for external uses)
+% • t is the time window (for external uses)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function [rawFiles, fs, t] = initialization(ProtocolName, inDir, bsDir, ...
@@ -78,8 +113,20 @@ function [rawFiles, fs, t] = initialization(ProtocolName, inDir, bsDir, ...
     t = floor(t/epTime)*epTime;
 end
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Initial preprocessing required in OMEGA
+% • Adjusts headpoints
+% • Converts to continuous
+% • Filters files with a notch filter and a high-pass filter at 0.3 Hz
+% • Deletes unfiltered files
+% • Returns filtered files
+%
+% INPUT:
+% • rawFiles is the array of structures related to the imported files
+%
+% OUTPUT:
+% • filtFiles is the array of structures related to the filtered files
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function filtFiles = preprocessing(rawFiles)
@@ -96,6 +143,14 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Filters a time window through a notch filter and a highpass filter
+% • Filters files with a notch filter to 60 Hz (and multipliers)
+% • Filters files with a high-pass filter at 0.3 Hz
+%
+% INPUT:
+% • rawFiles is the array of structures related to the imported files
+%
+% OUTPUT:
+% • filtered is the array of structures related to the filtered files
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function filtered = filter(rawFiles)
@@ -111,6 +166,10 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Removes ECG artifacts
+% • Clears ECG-related artifacts
+%
+% OUTPUT:
+% • cleanFiles is the array containing structures related to cleaned files
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function cleanFiles = artifact_cleaning()
@@ -132,9 +191,25 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Imports time windows from each subject's M/EEG
+% • Imports into database a resampled time window (t resampled to resample)
+%   divided into epochs (nEpochs) from files
+%
+% INPUT:
+% • files is the array of structures related to data files which have to be
+%   processed
+% • t is the time window which has to be extracted from each file
+% • epTime is the time of each epoch
+% • EventsTimeRange is the time range of events (set in database)
+% • resample is the resampling frequency
+% • nEpochs is the total number of epochs
+%
+% OUTPUT:
+% • importFiles is the cell array containing the structures related to
+%   epochs of each subject (one cell per subject)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function importFiles = import_raws(files, t, epTime, EventsTimeRange, resample, nEpochs)
+function importFiles = import_raws(files, t, epTime, EventsTimeRange, ...
+    resample, nEpochs)
     N = length(files);
     TimeRange = [0, t];
     importFiles = {};
@@ -186,6 +261,18 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Estimates noise covariance, head model and sources from each time window
+% • Estimates noise covariance for each subject
+% • Computes head model for each subject
+% • Estimates sources from each epoch of each subject
+% • Returns structures related to the estimated sources
+%
+% INPUT:
+% • importFiles is the cell array containing the structures related to
+%   epochs of each subject (one cell per subject)
+%
+% OUTPUT:
+% • sourceFiles is the cell array containing the structures related to
+%   sources estimated from each subject's epoch (one cell per subject)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function sourceFiles = source_estimation(importFiles)
@@ -210,6 +297,19 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Projects sources of a subject to the cortex of another subject
+% • Projects sources from each epochs of a chosen subject (srcSubject) onto
+%   cortices of other subjects
+%
+% INPUT:
+% • sourceFiles is the cell array containing the structures related to
+%   sources estimated from each subject's epoch (one cell per subject)
+% • srcSubject is the subject from which sources have to be projected
+% • bsDir is the directory containing the Brainstorm protocols
+% • ProtocolName is the name of the protocol which will be used
+%
+% OUTPUT:
+% • newSourceFiles is the cell array containing the names of the files
+%   containing the projected sources (one cell per subject)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function newSourceFiles = sources_projection(sourceFiles, srcSubject, ...
@@ -246,6 +346,18 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Extracts scouts from sources files
+% • Extracts scout time series for each ROI from each source file
+% 
+% INPUT:
+% • sourceFiles is the cell array containing the structures related to
+%   sources estimated from each subject's epoch (one cell per subject)
+% • scout is the type of scouts which have to be considered
+% • ROIs is the cell array containing the ROIs which have to be considered
+%
+% OUTPUT:
+% • scoutFiles is the cell array containing the structures related to
+%   scout time series estimated from each subject's epoch (one cell per 
+%   subject)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function scoutFiles = scout_extraction(sourceFiles, scout, ROIs)
@@ -293,10 +405,27 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Extracts scouts from reprojected sources
+% • Extracts scout time series for each ROI from each reprojected source 
+%   file
+% 
+% INPUT:
+% • sourceFiles is the cell array containing the structures related to
+%   sources estimated from each subject's epoch (one cell per subject)
+% • scout is the type of scouts which have to be considered
+% • ROIs is the cell array containing the ROIs which have to be considered
+% • srcSubject is the subject from which sources have to be projected
+% • epTime is the time of each epoch
+% • iStudy is the number of operations performed on the Brainstorm protocol
+%   (optional)
+%
+% OUTPUT:
+% • projectedScoutFiles is the cell array containing the structures related
+%   to reprojected scout time series estimated from each subject's epoch 
+%   (one cell per subject)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function projectedScoutFiles = ...
-    scout_extraction_reprojected(sourceFiles,  scout, ROIs, srcSubject, ...
+    scout_extraction_reprojected(sourceFiles, scout, ROIs, srcSubject, ...
     epTime, iStudy)
     if nargin < 6
         iStudy = 100;
