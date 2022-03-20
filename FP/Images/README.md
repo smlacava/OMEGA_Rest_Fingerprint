@@ -20,3 +20,6 @@ PLI    5.53       3.77      4.68
 Results for both the subjects not used for the default anatomy.
 
 Figures are related to a single subject (hiwever, they show a similar pattern).
+
+NO:  On normal anatomy (i.e., subject anatomy)
+PRJ: Projected on another anatomy
