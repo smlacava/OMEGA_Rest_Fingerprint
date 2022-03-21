@@ -17,7 +17,7 @@
     PLI    |    [5.53, 5.43, 4.21]         [3.77, 3.11, 4.50]        [4.68, 4.85, 7.08]
 
 
-Results for both the subjects not used for the default anatomy.
+Average results on the epochs 2-5 (the first is a bad epoch).
 
 Figures are related to a subject 4, projecting on its anatomy and on subject 2's anatomy (however, all combinations similar pattern).
 
