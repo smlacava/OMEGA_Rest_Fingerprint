@@ -8,7 +8,8 @@ function importFiles = fp_import_files(inDir, epTime)
         if contains(string(dirs(d).name), "sub")
             sub_dirs = dir(strcat(inDir, filesep, dirs(d).name));
             for s = 1:length(sub_dirs)
-                if contains(string(sub_dirs(s).name), "sub")
+                if contains(string(sub_dirs(s).name), "sub") & ...
+                        contains(string(sub_dirs(s).name), string(dirs(d).name))
                     subDir = strcat(dirs(d).name, filesep, ...
                         sub_dirs(s).name);
                     files = dir(strcat(inDir, filesep, subDir));

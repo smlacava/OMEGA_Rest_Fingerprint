@@ -13,7 +13,7 @@ inDir = 'C:\Users\simon\Downloads\fp';
 ProtocolName = 'fp';
 epTime = 2;
 EventsTimeRange = [-0.1, 3];
-srcSubject = 'sub-A2002';
+srcSubject = 'sub-A2004';
 condition = '_task-rest_meg_clean_resample_high';
 srcType = "dSPM";
 
@@ -43,9 +43,13 @@ ROIs = {'bankssts L','bankssts R','caudalanteriorcingulate L',...
         'temporalpole R','transversetemporal L','transversetemporal R'};
 
 %[rawFiles, fs, t] = initialization(ProtocolName, inDir, bsDir, epTime);
-%importFiles = fp_import_files(inDir, epTime);
-%sourceFiles = source_estimation(importFiles, 1);
-%scoutFiles = scout_extraction(sourceFiles, scout, ROIs);
+if ~brainstorm('status')
+    brainstorm nogui
+end
+importFiles = fp_import_files(strcat(inDir, filesep, ...
+    ProtocolName), epTime);
+sourceFiles = source_estimation(importFiles, 1);
+scoutFiles = scout_extraction(sourceFiles, scout, ROIs);
 newSourceFiles = sources_projection(sourceFiles, srcSubject, inDir, ...
     ProtocolName, condition, srcType);
 projectedScoutFiles = scout_extraction_reprojected(newSourceFiles, ...

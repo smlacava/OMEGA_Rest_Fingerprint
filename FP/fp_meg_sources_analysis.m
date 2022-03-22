@@ -6,27 +6,22 @@ bsDir = 'C:\Users\simon\Downloads\fp';
 ProtocolName = 'fp';
 epTime = 2;
 nEpochs = 5;
-srcSubject = 'sub-A2002';
+srcSubject = 'sub-A2004';
 condition = '_task-rest_meg_clean_resample_high';
-conn_fun = @phase_lag_index;
+conn_fun = @mutual_information;
 
 dataDir = strcat(bsDir, filesep, ProtocolName, filesep, 'data', filesep);
 cases = dir(dataDir);
 N = length(cases);
-try
-    clear P
-catch
-end
+RHO = 0;
+P = 0;
+projRHO = 0;
+projP = 0;
+bothP = 0;
+bothRHO = 0;
+count = 0;
+
 for i = 1:N
-    if not(exist("P", "var"))
-        RHO = 0;
-        P = 0;
-        projRHO = 0;
-        projP = 0;
-        bothP = 0;
-        bothRHO = 0;
-        count = 0;
-    end
     if contains(string(cases(i).name), "sub-A") & ...
             strcmpi(string(srcSubject), string(cases(i).name)) == 0
         data = access_data(dataDir, cases(i).name);
