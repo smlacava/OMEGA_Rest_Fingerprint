@@ -27,5 +27,5 @@ PRJ: Projected on another anatomy (PRJ1on2 means the first subject's data are pr
 RHO averaged between all the subjects except the one used as source subject in PRJ (eg., sub-A2003 and sub-A2004 when sub-A2002's anatomy is employed)
 
 <p align="center">
-  <img src="plv_coh.png" width="1000" title="hover text">
+  <img src="rho_plv.png" width="1000" title="hover text">
 </p>
