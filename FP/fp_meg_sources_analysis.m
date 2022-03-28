@@ -24,19 +24,22 @@ epTime = 2;
 nEpochs = 5;
 %srcSubject = 'sub-A2004';
 condition = '_task-rest_meg_clean_resample_high';
-conn_fun = @phase_locking_value;
+conn_fun = @magnitude_squared_coherence;
 
-
-single_RHO = 0; 
-single_prjRHO = 0; 
-single_bothRHO = 0; 
-single_sesRHO = 0;
-default_RHO = 0;
-default_sameRHO = 0;
 
 dataDir = strcat(bsDir, filesep, ProtocolName, filesep, 'data', filesep);
 cases = dir(dataDir);
 N = length(cases);
+
+single_RHO = zeros(1, N); 
+single_prjRHO = zeros(1, N); 
+single_bothRHO = zeros(1, N); 
+single_sesRHO = zeros(1, N);
+default_RHO = zeros(1, N);
+default_sameRHO = zeros(1, N);
+anat_RHO = zeros(1, N);
+anat_sameRHO = zeros(1, N);
+del_idx = [];
 
 count = 0;
 for i = 1:N
@@ -44,62 +47,92 @@ for i = 1:N
         [aux_RHO, aux_prjRHO, aux_bothRHO, aux_sesRHO] = ...
             single_subjects_analysis(dataDir, cases, cases(i).name, ...
             nEpochs, conn_fun);
-        single_prjRHO = single_prjRHO+aux_prjRHO;
-        single_bothRHO = single_bothRHO+aux_bothRHO;
-        single_sesRHO = single_sesRHO+aux_sesRHO;
-        single_RHO = single_RHO+aux_RHO;
+        single_prjRHO(i) = aux_prjRHO;   % same head, diff src, same ep
+        single_bothRHO(i) = aux_bothRHO; % same head, same prj src, diff ep
+        single_sesRHO(i) = aux_sesRHO;   % same head, diff src, same ep
+        single_RHO(i) = aux_RHO;         % same head, same src, diff ep
 
         [aux_RHO, aux_sameRHO] = ...
-            paired_subject_default_analysis(dataDir, cases, srcSubject, ...
+            paired_subject_default_analysis(dataDir, cases, cases(i).name, ...
             nEpochs, conn_fun);
-        default_RHO = default_RHO+aux_RHO;
-        default_sameRHO = default_sameRHO+aux_sameRHO;
+        default_RHO(i) = aux_RHO;
+        default_sameRHO(i) = aux_sameRHO;
+
+        [aux_RHO, aux_sameRHO] = ...
+            paired_subject_default_anat_analysis(dataDir, cases, ...
+            cases(i).name, nEpochs, conn_fun);
+        anat_RHO(i) = aux_RHO;
+        anat_sameRHO(i) = aux_sameRHO;
 
         count = count+1;
         close all
+    else
+        del_idx = [del_idx, i];
     end
 end
-single_prjRHO = single_prjRHO/count;
-single_bothRHO = single_bothRHO/count;
-single_sesRHO = single_sesRHO/count;
-single_RHO = single_RHO/count;
-default_sameRHO = default_sameRHO/count;
-default_RHO = default_RHO/count;
+
 
 [RHO, noRHO, noSameRHO, prjSameRHO, prj2SameRHO, prjRHO, prj2RHO] = ...
     paired_subjects_analysis(dataDir, cases, nEpochs, conn_fun);
 close all
 
-disp("SINGLE SUBJECTS ANALYSIS: ")
-disp(strcat("RHO: NOvsNO=", string(single_RHO), " NOvsPRJ(diff sess)=", ...
-    string(single_prjRHO), " PRJvsPRJ=", string(single_bothRHO), ...
-    " NOvsPRJ(same sess)=", string(single_sesRHO)))
-disp("PAIRED SUBJECTS ANALYSIS-SAME SESSION: ")
-disp(strcat("RHO: NO1vsNO2=", string(noSameRHO), " NO2vsPRJ2on1=", ...
-    string(prjSameRHO)," NO1vsPRJ2on1=", string(prj2SameRHO)))
-disp("---")
-disp("PAIRED SUBJECTS ANALYSIS-DIFFERENT SESSIONS: ")
-disp(strcat("RHO: NO1vsNO1=", string(RHO), " NO1vsNO2=", string(noRHO), ...
-    " NO2vsPRJ2on1=", string(prjRHO), " NO1vsPRJ2on1=", string(prj2RHO)))
-disp("---")
-disp("PAIRED SUBJECTS ANALYSIS-DEFAULT ANATOMY: ")
-disp("PRJ1 on 3 vs PRJ2 on 3")
-disp(strcat("RHO: same_session=", string(default_sameRHO), ...
-    " different_session=", string(default_RHO)))
+%% Descriptive statistics
+[single_prjRHO_mn, single_prjRHO_mdn, single_prjRHO_sd] = ...
+    describe(single_prjRHO, del_idx);
+[single_bothRHO_mn, single_bothRHO_mdn, single_bothRHO_sd] = ...
+    describe(single_bothRHO, del_idx);
+[single_sesRHO_mn, single_sesRHO_mdn, single_sesRHO_sd] = ...
+    describe(single_sesRHO, del_idx);
+[single_RHO_mn, single_RHO_mdn, single_RHO_sd] = describe(single_RHO, ...
+    del_idx);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Analysis on single subjects
+[default_sameRHO_mn, default_sameRHO_mdn, default_sameRHO_sd] = ...
+    describe(default_sameRHO, del_idx);
+[default_RHO_mn, default_RHO_mdn, default_RHO_sd] = ...
+    describe(default_RHO, del_idx);
+
+[anat_sameRHO_mn, anat_sameRHO_mdn, anat_sameRHO_sd] = ...
+    describe(anat_sameRHO, del_idx);
+[anat_RHO_mn, anat_RHO_mdn, anat_RHO_sd] = ...
+    describe(default_RHO, del_idx);
+
+[RHO_mn, RHO_mdn, RHO_sd] = describe(RHO);
+[noRHO_mn, noRHO_mdn, noRHO_sd] = describe(noRHO);
+[noSameRHO_mn, noSameRHO_mdn, noSameRHO_sd] = describe(noSameRHO);
+[prjSameRHO_mn, prjSameRHO_mdn, prjSameRHO_sd] = describe(prjSameRHO);
+[prj2SameRHO_mn, prj2SameRHO_mdn, prj2SameRHO_sd] = describe(prj2SameRHO);
+[prjRHO_mn, prjRHO_mdn, prjRHO_sd] = describe(prjRHO);
+[prj2RHO_mn, prj2RHO_mdn, prj2RHO_sd] = describe(prj2RHO);
+
+%% Si is Sources i on Anatomy i, SiAj is Sources i on Anatomy j 
+box_plots({{"S1 vs S1, different sess",[RHO_mn, RHO_mdn, RHO_sd]},...                                 % same head, same src, diff ep (mean per subject's sources)
+    {"S1 vs S2, different sess", [noRHO_mn, noRHO_mdn, noRHO_sd]}, ...                                % diff head, diff src, diff ep (mean per subject's sources)
+    {"S1 vs S2, same sess", [noSameRHO_mn, noSameRHO_mdn, noSameRHO_sd]},...                          % diff head, diff src, same ep (mean per subject's sources)
+    {"S1 vs S2A1, same sess", [prjSameRHO_mn, prjSameRHO_mdn, prjSameRHO_sd]}, ...                    % same head, diff src, same ep (mean per subject's sources)
+    {"S2 vs S2A1, same sess", [prj2SameRHO_mn, prj2SameRHO_mdn, prj2SameRHO_sd]}, ...                 % diff head, same src, same ep (mean per subject's sources)
+    {"S1 vs S2A1, different sess", [prjRHO_mn, prjRHO_mdn, prjRHO_sd]}, ...                           % same head, diff src, diff ep (mean per subject's sources)
+    {"S2 vs S2A1, different sess", [prj2RHO_mn, prj2RHO_mdn, prj2RHO_sd]}, ...                        % diff head, same src, diff ep (mean per subject's sources)
+    {"S1 vs S2A1, different sess", [single_prjRHO_mn, single_prjRHO_mdn, single_prjRHO_sd]}, ...      % same head, diff src, same ep (mean per subject's sources)
+    {"S2A1 vs S2A1, different sess", [single_bothRHO_mn, single_bothRHO_mdn, single_bothRHO_sd]}, ... % same head, same prj src, diff ep (mean per subject's sources)
+    {"S1 vs S2A1, same sess", [single_sesRHO_mn, single_sesRHO_mdn, single_sesRHO_sd]}, ...           % same head, diff src, same ep (mean per subject's sources)
+    {"S1A3 vs S2A3, same sess", [anat_sameRHO_mn, anat_sameRHO_mdn, anat_sameRHO_sd]}, ...            % same head, diff prj src, same ep (mean per subject's head)
+    {"S1A3 vs S2A3, different sess", [anat_RHO_mn, anat_RHO_mdn, anat_RHO_sd]}, ...                   % same head, diff prj src, diff ep (mean per subject's head)
+    {"S3A1 vs S3A2, same sess", [default_sameRHO_mn, default_sameRHO_mdn, default_sameRHO_sd]}, ...   % diff head, same prj src, same ep (mean per subject's sources)
+    {"S3A1 vs S3A2, different sess", [default_RHO_mn, default_RHO_mdn, default_RHO_sd]}})             % diff head, same prj src, diff ep (mean per subject's sources)
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Analysis on single subjects' anatomy (sources and session effect)
 % - NOvsNO (same subject, same head) in different sessions (session effect)
-% - NOvsPRJ (same subject, different head) in the same session (head 
+% - NOvsPRJ (different subjects, same head) in the same session (sources
 %   effect)
-% - NOvsPRJ (same subject, different head) in different sessions (if 
-%   similar to NOvsPRJ in the same)
-%   session, then head effect is dominant with respect to sessions)
-% - PRJvsPRJ (same subject, same third-party head) in different sessions
-%   (if similar to NOvsNO then head effect is dominant)
+% - NOvsPRJ (different subjects, same head) in different sessions (session
+%   and sources effect)
+% - PRJvsPRJ (same head, same third-party sources) in different sessions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%ù
 
-function [RHO, projRHO, bothRHO, sesRHO] = ...
+function [single_RHO, single_prjRHO, single_bothRHO, single_sameRHO] = ...
     single_subjects_analysis(dataDir, cases, srcSubject, nEpochs, ...
     conn_fun, printFLAG)
 
@@ -109,32 +142,33 @@ function [RHO, projRHO, bothRHO, sesRHO] = ...
     
     N = length(cases);
 
-    % NOvsNo same subject, same head, different sessions
-    RHO = 0;
-    P = 0;
+    % NOvsNo, same head, same sources, different sessions
+    single_RHO = 0;
+    single_P = 0;
     
-    % NOvsPRJ same subject, different head, different sessions
-    projRHO = 0;
-    projP = 0;
+    % NOvsPRJ, same head, different sources, different sessions
+    single_prjRHO = 0;
+    single_prjP = 0;
 
-    % PRJvsPRJ same subject, same (other) head, different sessions
-    bothP = 0;
-    bothRHO = 0;
+    % PRJvsPRJ, same head, same proj sources, different session
+    single_bothP = 0;
+    single_bothRHO = 0;
 
-    % NOvsPRJ same subject, different head, same session
-    sesP = 0;
-    sesRHO = 0;
+    % NOvsPRJ, same head, different sources, same session
+    single_sameP = 0;
+    single_sameRHO = 0;
     
-    count = 0;
-    countSes = 0;
+    count = 0;    % count number of combinations in different sessions
+    countSes = 0; % count number of sessions (epochs)
 
     for i = 1:N
         if contains(string(cases(i).name), "sub-A") & ...
                 strcmpi(string(srcSubject), string(cases(i).name)) == 0
-            data = access_data(dataDir, cases(i).name);
-            projData = access_projected_data(dataDir, cases(i).name, srcSubject);
 
-            %% DO ANALYSIS HERE
+            data = access_data(dataDir, cases(i).name); % N1
+            projData = access_projected_data(dataDir, cases(i).name, ...
+                srcSubject);                            % PRJ2to1
+
             conn = {};
             projConn = {};
             for j = 2:nEpochs+1
@@ -154,16 +188,16 @@ function [RHO, projRHO, bothRHO, sesRHO] = ...
                             ylabel(strcat("Ses ", string(j)))
                         end
                         [auxRHO, auxP] = corr(conn{j}(:), conn{k}(:));
-                        P = P+auxP;
-                        RHO = RHO+auxRHO;
+                        single_P = single_P+auxP;
+                        single_RHO = single_RHO+auxRHO;
                         hold on
                         scatter(conn{j}(:), projConn{k}(:), 1, 'g', '.')
                         [auxRHO, auxP] = corr(conn{j}(:), projConn{k}(:));
-                        projP = projP+auxP;
-                        projRHO = projRHO+auxRHO;
+                        single_prjP = single_prjP+auxP;
+                        single_prjRHO = single_prjRHO+auxRHO;
                         [auxRHO, auxP] = corr(projConn{j}(:), projConn{k}(:));
-                        bothP = bothP+auxP;
-                        bothRHO = bothRHO+auxRHO;
+                        single_bothP = single_bothP+auxP;
+                        single_bothRHO = single_bothRHO+auxRHO;
                         xlim([0, 1])
                         ylim([0, 1])
                         count = count+1;
@@ -178,34 +212,34 @@ function [RHO, projRHO, bothRHO, sesRHO] = ...
                         xlim([0, 1])
                         ylim([0, 1])
                         [auxRHO, auxP] = corr(conn{j}(:), projConn{k}(:));
-                        sesP = sesP+auxP;
-                        sesRHO = sesRHO+auxRHO;
+                        single_sameP = single_sameP+auxP;
+                        single_sameRHO = single_sameRHO+auxRHO;
                         countSes = countSes+1;
                     end
                 end
             end
         end
     end
-    P = P/count;
-    projP = P/count;
-    RHO = RHO/count;
-    projRHO = projRHO/count;
-    bothP = bothP/count;
-    bothRHO = bothRHO/count;
-    sesRHO = sesRHO/countSes;
-    sesP = sesP/countSes;
+    single_P = single_P/count;
+    single_prjP = single_P/count;
+    single_RHO = single_RHO/count;
+    single_prjRHO = single_prjRHO/count;
+    single_bothP = single_bothP/count;
+    single_bothRHO = single_bothRHO/count;
+    single_sameRHO = single_sameRHO/countSes;
+    single_sameP = single_sameP/countSes;
     if printFLAG == 1
         disp("SINGLE SUBJECTS ANALYSIS: ")
         disp("session effect, head effect, head dominance")
-        disp(strcat("RHO: NOvsNO=", string(RHO), ...
-            " NOvsPRJ(diff sess)=", string(projRHO), " PRJvsPRJ=", ...
-            string(bothRHO), " NOvsPRJ(same sess)=", string(sesRHO)))
+        disp(strcat("RHO: NOvsNO=", string(single_RHO), ...
+            " NOvsPRJ(diff sess)=", string(single_prjRHO), " PRJvsPRJ=", ...
+            string(single_bothRHO), " NOvsPRJ(same sess)=", string(single_sameRHO)))
     end
 end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Analysis on pairs of subjects
+%% Analysis on pairs of subjects (mean on sources)
 % - 2 subjects NO (their own head) in the same session (ability to 
 %   distinguish between them)
 % - 2 subjects NO (their own head) in different sessions (ability to 
@@ -227,46 +261,64 @@ function [RHO, noRHO, noSameRHO, prjSameRHO, prj2SameRHO, prjRHO, ...
     N = length(cases);
     
     % NO1 vs NO1, different
-    RHO = 0;
-    P = 0;
+    RHO = zeros(1,N);
+    P = zeros(1, N);
 
     % NO1 vs NO2, different
-    noRHO = 0;
-    noP = 0;
+    noRHO = zeros(1,N);
+    noP = zeros(1, N);
 
     %NO1 vs NO2, same
-    noSameRHO = 0;
-    noSameP = 0;
+    noSameRHO = zeros(1, N);
+    noSameP = zeros(1,N);
 
     % NO1 vs PRJ2 on 1, same
-    prjSameRHO = 0;
-    prjSameP = 0;
+    prjSameRHO = zeros(1, N);
+    prjSameP = zeros(1, N);
 
     % NO2 vs PRJ2 on 1, same
-    prj2SameRHO = 0;
-    prj2SameP = 0;
+    prj2SameRHO = zeros(1, N);
+    prj2SameP = zeros(1, N);
 
     % NO1 vs PRJ2 on 1, different
-    prjRHO = 0;
-    prjP = 0;
+    prjRHO = zeros(1, N);
+    prjP = zeros(1, N);
 
     % NO2 vs PRJ2 on 1, different
-    prj2RHO = 0;
-    prj2P = 0;
+    prj2RHO = zeros(1, N);
+    prj2P = zeros(1, N);
 
-    count = 0;
-    countSes = 0;
+    del_idx = [];
 
-    for s = 1:N %NO1
+    for s = 1:N %SUB1
         if not(contains(string(cases(s).name), "sub-A"))
+            del_idx = [del_idx, s];
             continue;
         end
         noData = access_data(dataDir, cases(s).name);
         noConn = {};
         for j = 2:nEpochs+1
             noConn = [noConn, conn_fun(noData{j}')];
-        end
-        for i = 1:N %NO2
+        end     
+        single_RHO = 0;
+        single_P = 0;
+        single_noRHO = 0;
+        single_noP = 0;
+        single_noSameRHO = 0;
+        single_noSameP = 0;
+        single_prjSameRHO = 0;
+        single_prjSameP = 0;
+        single_prj2SameRHO = 0;
+        single_prj2SameP = 0;
+        single_prjRHO = 0;
+        single_prjP = 0;
+        single_prj2RHO = 0;
+        single_prj2P = 0;
+        count = 0;
+        countSes = 0;
+
+
+        for i = 1:N %SUB2
             if i == s
                 continue;
             end
@@ -293,26 +345,26 @@ function [RHO, noRHO, noSameRHO, prjSameRHO, prj2SameRHO, prjRHO, ...
                                 ylabel(strcat("Ses ", string(j)))
                             end
 
-                            [P, RHO] = ...
+                            [single_P, single_RHO] = ...
                                 correlation_update(conn{j}(:), ...
-                                conn{k}(:), P, RHO);
+                                conn{k}(:), single_P, single_RHO);
                             scatter(conn{j}(:), conn{k}(:), 1, 'r', '.')
                             hold on
 
-                            [noP, noRHO] = ...
+                            [single_noP, single_noRHO] = ...
                                 correlation_update(conn{j}(:), ...
-                                noConn{k}(:), noP, noRHO);
-                            scatter(conn{j}(:), conn{k}(:), 1, 'g', '.')
+                                noConn{k}(:), single_noP, single_noRHO);
+                            scatter(conn{j}(:), noConn{k}(:), 1, 'g', '.')
                             
-                            [prjP, prjRHO] = ...
+                            [single_prjP, single_prjRHO] = ...
                                 correlation_update(conn{j}(:), ...
-                                projConn{k}(:), prjP, prjRHO);
+                                projConn{k}(:), single_prjP, single_prjRHO);
                             scatter(conn{j}(:), projConn{k}(:), 1, ...
                                 'b', '.')
 
-                            [prj2P, prj2RHO] = ...
+                            [single_prj2P, single_prj2RHO] = ...
                                 correlation_update(noConn{j}(:), ...
-                                projConn{k}(:), prj2P, prj2RHO);
+                                projConn{k}(:), single_prj2P, single_prj2RHO);
                             scatter(noConn{j}(:), projConn{k}(:), 1, ...
                                 'k', '.')
 
@@ -325,21 +377,21 @@ function [RHO, noRHO, noSameRHO, prjSameRHO, prj2SameRHO, prjRHO, ...
                                 'r', '.')
                             hold on
 
-                            [noSameP, noSameRHO] = ...
+                            [single_noSameP, single_noSameRHO] = ...
                                 correlation_update(conn{j}(:), ...
-                                noConn{j}(:), noSameP, noSameRHO);
+                                noConn{j}(:), single_noSameP, single_noSameRHO);
                             scatter(conn{j}(:), noConn{j}(:), 1, ...
                                 'g', '.')
 
-                            [prjSameP, prjSameRHO] = ...
+                            [single_prjSameP, single_prjSameRHO] = ...
                                 correlation_update(conn{j}(:), ...
-                                projConn{j}(:), prjSameP, prjSameRHO);
+                                projConn{j}(:), single_prjSameP, single_prjSameRHO);
                             scatter(conn{j}(:), projConn{j}(:), 1, ...
                                 'b', '.')
 
-                            [prj2SameP, prj2SameRHO] = ...
+                            [single_prj2SameP, single_prj2SameRHO] = ...
                                 correlation_update(noConn{j}(:), ...
-                                projConn{j}(:), prj2SameP, prj2SameRHO);
+                                projConn{j}(:), single_prj2SameP, single_prj2SameRHO);
                             scatter(noConn{j}(:), projConn{j}(:), 1, ...
                                 'k', '.')
 
@@ -356,22 +408,36 @@ function [RHO, noRHO, noSameRHO, prjSameRHO, prj2SameRHO, prjRHO, ...
                 end
             end
         end
+        prjP(s) = single_prjP/count;
+        prjRHO(s) = single_prjRHO/count;
+        prj2P(s) = single_prj2P/count;
+        prj2RHO(s) = single_prj2RHO/count;
+        noRHO(s) = single_noRHO/count;
+        noP(s) = single_noP/count;
+        P(s) = single_P/count;
+        RHO(s) = single_RHO/count;
+        noSameP(s) = single_noSameP/countSes;
+        noSameRHO(s) = single_noSameRHO/countSes;
+        prjSameP(s) = single_prjSameP/countSes;
+        prjSameRHO(s) = single_prjSameRHO/countSes;
+        prj2SameP(s) = single_prj2SameP/countSes;
+        prj2SameRHO(s) = single_prj2SameRHO/countSes;
     end
-    prjP = prjP/count;
-    prjRHO = prjRHO/count;
-    prj2P = prj2P/count;
-    prj2RHO = prj2RHO/count;
-    noRHO = noRHO/count;
-    noP = noP/count;
-    P = P/count;
-    RHO = RHO/count;
 
-    noSameP = noSameP/countSes;
-    noSameRHO = noSameRHO/countSes;
-    prjSameP = prjSameP/countSes;
-    prjSameRHO = prjSameRHO/countSes;
-    prj2SameP = prj2SameP/countSes;
-    prj2SameRHO = prj2SameRHO/countSes;
+    prjP(del_idx) = [];
+    prjRHO(del_idx) = [];
+    prj2P(del_idx) = [];
+    prj2RHO(del_idx) = [];
+    noRHO(del_idx) = [];
+    noP(del_idx) = [];
+    P(del_idx) = [];
+    RHO(del_idx) = [];
+    noSameP(del_idx) = [];
+    noSameRHO(del_idx) = [];
+    prjSameP(del_idx) = [];
+    prjSameRHO(del_idx) = [];
+    prj2SameP(del_idx) = [];
+    prj2SameRHO(del_idx) = [];
 
     if printFLAG == 1
         disp("PAIRED SUBJECTS ANALYSIS-SAME SESSION: ")
@@ -389,11 +455,11 @@ end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Analysis on pairs of subjects using a default anatomy
-% - 2 subjects PRJ on the same head same session (about equal if 
-%   head effect is dominant over data)
-% - 2 subjects PRJ on the same head same session (about equal if 
-%   head effect is dominant overall)
+%% Analysis on pairs of subjects using default sources
+% - Sources projected on 2 anatomies in same session (about equal if data
+%   effect is dominant over head)
+% - Sources projected on 2 anatomies in different sessions (about equal if 
+%   data effect is dominant overall)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function [RHO, sameRHO] = paired_subject_default_analysis(dataDir, ...
@@ -491,6 +557,107 @@ function [RHO, sameRHO] = paired_subject_default_analysis(dataDir, ...
 end
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Analysis on pairs of subjects using a default anatomy
+% - 2 subjects PRJ on the same head same session (about equal if 
+%   head effect is dominant over data)
+% - 2 subjects PRJ on the same head same session (about equal if 
+%   head effect is dominant overall)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function [RHO, sameRHO] = paired_subject_default_anat_analysis(dataDir, ...
+    cases, anatSubject, nEpochs, conn_fun, printFLAG)
+
+
+    if nargin < 6
+        printFLAG = 0;
+    end
+    
+    N = length(cases);
+    
+    % PRJ1on3 vs PRJ2on3, same session
+    sameRHO = 0;
+    sameP = 0;
+
+    % PRJ1on3 vs PRJ2on3, different sessions
+    RHO = 0;
+    P = 0;
+
+    count = 0;
+    countSes = 0;
+
+    for s = 1:N-1
+        if not(contains(string(cases(s).name), "sub-A")) | ...
+                contains(string(cases(s).name), string(anatSubject))
+            continue;
+        end
+        conn = {};
+        projData = access_projected_data(dataDir, anatSubject, ...
+            cases(s).name);
+        for j = 2:nEpochs+1
+            conn = [conn, conn_fun(projData{j}')];
+        end
+        for i = s+1:N
+            if contains(string(cases(i).name), "sub-A") & ...
+                    not(contains(string(cases(s).name), ...
+                    string(anatSubject)))
+                projData2 = access_projected_data(dataDir, anatSubject, ...
+                    cases(i).name);
+
+                %% DO ANALYSIS HERE
+                conn2 = {};
+                for j = 2:nEpochs+1
+                    conn2 = [conn2, conn_fun(projData2{j}')];
+                end
+                figure('Name',strcat(cases(s).name, " vs ", ...
+                    cases(i).name, ", projected on ", anatSubject))
+                for j = 1:nEpochs
+                    for k = 1:nEpochs
+                        if k ~= j
+                            subplot(nEpochs, nEpochs, (j-1)*nEpochs+k)
+                            if j == 1
+                                title(strcat("Ses ", string(k)))
+                            end
+                            if k == 1
+                                ylabel(strcat("Ses ", string(j)))
+                            end
+
+                            [P, RHO] = ...
+                                correlation_update(conn{j}(:), ...
+                                conn2{k}(:), P, RHO);
+                            scatter(conn{j}(:), conn2{k}(:), 1, 'r', '.')
+                            xlim([0, 1])
+                            ylim([0, 1])
+                            count = count+1;
+                        else
+                            subplot(nEpochs, nEpochs, (j-1)*nEpochs+k)
+                            [sameP, sameRHO] = ...
+                                correlation_update(conn{j}(:), ...
+                                conn2{j}(:), sameP, sameRHO);
+                            scatter(conn{j}(:), conn2{j}(:), 1, ...
+                                'r', '.')
+                            hold on
+                            xlim([0, 1])
+                            ylim([0, 1])
+                            countSes = countSes+1;
+                        end
+                    end
+                end
+            end
+        end
+    end
+    P = P/count;
+    RHO = RHO/count;
+    sameP = sameP/countSes;
+    sameRHO = sameRHO/countSes;
+
+    if printFLAG == 1
+        disp("PAIRED SUBJECTS ANALYSIS-DEFAULT ANATOMY: ")
+        disp("PRJ1 on 3 vs PRJ2 on 3")
+        disp(strcat("RHO: same_session=", string(sameRHO), ...
+            " different_session=", string(RHO)))
+    end
+end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -502,12 +669,14 @@ function data = access_data(dataDir, subject_name)
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Access projected subject's scout data
+%% Access projected subject's source data
+% subject_name identify the subject to which the anatomy belongs
+% srcSubject identify the subject to which the source data belongs
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function data = access_projected_data(dataDir, subject_name, srcSubject)
+function data = access_projected_data(dataDir, anatSubject, srcSubject)
     data = {};
-    subDir = strcat(dataDir, subject_name, filesep, srcSubject, ...
+    subDir = strcat(dataDir, anatSubject, filesep, srcSubject, ...
         '_task-rest_meg_clean_resample_high', filesep);
     cases = dir(subDir);
     for i = 1:length(cases)
@@ -526,4 +695,61 @@ function [P, RHO] = correlation_update(data1, data2, P, RHO)
     [auxRHO, auxP] = corr(data1, data2);
     P = P+auxP;
     RHO = RHO+auxRHO;
+end
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Evaluate descriptive statistics from RHO vectors
+% mn:  mean
+% mdn: median
+% sd:  standard deviation
+%
+% Each RHO in the vector is related to the average for the single subject
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function [mn, mdn, sd] = describe(RHO, del_idx)
+    if nargin < 2
+        del_idx = [];
+    end
+    RHO(del_idx) = [];
+    mn = mean(RHO);
+    mdn = median(RHO);
+    sd = std(RHO);
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Box plots mean±std highlighting the median in red
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function box_plots(RHOs)
+    figure("Name", "RHO","Color","w")
+    ticks = [];
+    lbl = [];
+    max_dev = 0;
+    for i = 1:length(RHOs)
+        aux = RHOs{i};
+        name = aux{1};
+        stats = aux{2};
+        mn = stats(1);
+        mdn = stats(2);
+        sd = stats(3);
+        if max_dev < mn+sd
+            max_dev = mn+sd;
+        end
+        dx = i*3;
+        plot([1+dx, 1+dx], [mn-sd, mn+sd], 'k')
+        hold on
+        plot([1+dx, 2+dx], [mn-sd, mn-sd], 'k')
+        plot([1+dx, 2+dx], [mn, mn], 'k')
+        plot([1+dx, 2+dx], [mn+sd, mn+sd], 'k')
+        plot([2+dx, 2+dx], [mn-sd, mn+sd], 'k')
+        plot([0.5+dx, 2.5+dx], [mdn, mdn], 'r')
+        ticks = [ticks, dx+1.5];
+        lbl = [lbl, name];
+    end
+    hold off
+    xticks([4.5:3:dx+1.6])
+    xticklabels(lbl)
+    xlim([0, dx+3])
+    ylim([0, max(1, max_dev+0.1)])
+    ylabel("RHO")
 end
