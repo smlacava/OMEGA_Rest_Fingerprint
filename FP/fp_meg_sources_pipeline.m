@@ -8,14 +8,16 @@
 % 6) Sources are reprojected from a subject onto other subject's cortices
 % 7) Scouts are extracted from reprojected sources
 
+
 bsDir = 'C:\Users\simon\OneDrive\Desktop\Ricerca\EEGLab\';
-inDir = 'C:\Users\simon\Downloads\fp';
-ProtocolName = 'fp';
+inDir = 'C:\Users\simon\Downloads\fp3\fp3';
+ProtocolName = 'fp3';
 epTime = 2;
 EventsTimeRange = [-0.1, 3];
-srcSubject = 'sub-A2004';
 condition = '_task-rest_meg_clean_resample_high';
 srcType = "dSPM";
+removeBadEpochs = 1;
+commonFLAG = 1; % Takes the minimum number of epochs per subject
 
 scout = 'Desikan-Killiany';
 ROIs = {'bankssts L','bankssts R','caudalanteriorcingulate L',...
@@ -47,13 +49,16 @@ if ~brainstorm('status')
     brainstorm nogui
 end
 importFiles = fp_import_files(strcat(inDir, filesep, ...
-    ProtocolName), epTime);
+    ProtocolName), epTime, removeBadEpochs, commonFLAG);
 sourceFiles = source_estimation(importFiles, 1);
 scoutFiles = scout_extraction(sourceFiles, scout, ROIs);
-newSourceFiles = sources_projection(sourceFiles, srcSubject, inDir, ...
-    ProtocolName, condition, srcType);
-projectedScoutFiles = scout_extraction_reprojected(newSourceFiles, ...
-    scout, ROIs, srcSubject, epTime);
+for i = 1:length(importFiles)
+    srcSubject = importFiles{1}(1).FileName(1:9);
+    newSourceFiles = sources_projection(sourceFiles, srcSubject, ...
+        inDir, ProtocolName, condition, srcType);
+    projectedScoutFiles = scout_extraction_reprojected(newSourceFiles, ...
+        scout, ROIs, srcSubject, epTime);
+end
 %psdSourcesFiles = power_maps(sourceFiles);
 
 disp(1)   

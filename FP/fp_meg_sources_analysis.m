@@ -18,13 +18,15 @@
 % - 2 subjects PRJ on the same head different sessions (about equal if 
 %   head effect is dominant)
 
+%% TO ADD:
+% - A check when using sources on their own anatomy to see if epochs are
+%   bad (brainstorm study)
 bsDir = 'C:\Users\simon\Downloads\fp';
 ProtocolName = 'fp';
 epTime = 2;
 nEpochs = 5;
-%srcSubject = 'sub-A2004';
 condition = '_task-rest_meg_clean_resample_high';
-conn_fun = @magnitude_squared_coherence;
+conn_fun = @amplitude_envelope_correlation_orth;
 
 
 dataDir = strcat(bsDir, filesep, ProtocolName, filesep, 'data', filesep);
