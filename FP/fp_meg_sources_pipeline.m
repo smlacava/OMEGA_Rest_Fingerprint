@@ -10,8 +10,9 @@
 
 
 bsDir = 'C:\Users\simon\OneDrive\Desktop\Ricerca\EEGLab\';
-inDir = 'C:\Users\simon\Downloads\fp3\fp3';
-ProtocolName = 'fp3';
+inDir = 'C:\Users\simon\Downloads\fp4';
+outDir = 'C:\Users\simon\Downloads\results';
+ProtocolName = 'fp4';
 epTime = 2;
 EventsTimeRange = [-0.1, 3];
 condition = '_task-rest_meg_clean_resample_high';
@@ -51,13 +52,14 @@ end
 importFiles = fp_import_files(strcat(inDir, filesep, ...
     ProtocolName), epTime, removeBadEpochs, commonFLAG);
 sourceFiles = source_estimation(importFiles, 1);
-scoutFiles = scout_extraction(sourceFiles, scout, ROIs);
+scoutFiles = scout_extraction(sourceFiles, scout, ROIs, inDir, ...
+    ProtocolName, outDir);
 for i = 1:length(importFiles)
     srcSubject = importFiles{1}(1).FileName(1:9);
     newSourceFiles = sources_projection(sourceFiles, srcSubject, ...
         inDir, ProtocolName, condition, srcType);
     projectedScoutFiles = scout_extraction_reprojected(newSourceFiles, ...
-        scout, ROIs, srcSubject, epTime);
+        scout, ROIs, srcSubject, epTime, inDir, ProtocolName, outDir);
 end
 %psdSourcesFiles = power_maps(sourceFiles);
 
