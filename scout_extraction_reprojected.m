@@ -21,10 +21,17 @@
 
 function projectedScoutFiles = ...
     scout_extraction_reprojected(sourceFiles, scout, ROIs, srcSubject, ...
-    epTime, iStudy)
-    if nargin < 6
+    epTime, inDir, protocolName, outDir, iStudy)
+    if nargin < 9
         iStudy = 100;
     end
+    if nargin < 6
+        inDir = '';
+        outDir = '';
+        protocolName = [];
+    end
+    outDir = strcat(outDir, filesep, protocolName);
+    inDir = strcat(inDir, filesep, protocolName, filesep, 'data');
     sProcess = struct();
     sProcess.Function = @process_extract_scout;
     sProcess.Comment = 'Scouts time series';
@@ -122,6 +129,24 @@ function projectedScoutFiles = ...
             sInputs.FileName = auxFiles{j};
             subFiles = [subFiles, ...
                 bst_process('Run', sProcess, sInputs, [], 1)];
+            %delete(strcat(inDir, filesep, auxFiles{j}));
+        end
+        if not(isempty(protocolName))
+            for k = 1:length(subFiles)
+                if k == 1
+                    try
+                        mkdir(strcat(outDir, filesep, ...
+                            subFiles{k}.SubjectName))
+                        mkdir(strcat(outDir, filesep, ...
+                            subFiles{k}.SubjectName, filesep, ...
+                            subFiles{k}.Condition))
+                    catch
+                    end
+                end
+                copyfile(strcat(inDir, filesep, subFiles{k}.FileName), ...
+                    strcat(outDir, filesep, subFiles{k}.FileName));
+                delete(strcat(inDir, filesep, subFiles{k}.FileName));
+            end
         end
         projectedScoutFiles = [projectedScoutFiles, subFiles];
     end

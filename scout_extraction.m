@@ -14,8 +14,17 @@
 %   subject)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function scoutFiles = scout_extraction(sourceFiles, scout, ROIs)
+function scoutFiles = scout_extraction(sourceFiles, scout, ROIs, inDir, ...
+    protocolName, outDir)
+    
     scoutFiles = {};
+    if nargin < 3
+        inDir = '';
+        outDir = '';
+        protocolName = [];
+    end
+    outDir = strcat(outDir, filesep, protocolName);
+    inDir = strcat(inDir, filesep, protocolName, filesep, 'data');
     for i = 1:length(sourceFiles)
         aux = [];
         auxSourceFiles = sourceFiles{i};
@@ -26,6 +35,23 @@ function scoutFiles = scout_extraction(sourceFiles, scout, ROIs)
                 'scoutfunc', 1, 'isflip', 1, 'isnorm', 0, ...
                 'concatenate', 1, 'save', 1, 'addrowcomment', 1, ...
                 'addfilecomment', 1)];
+        end
+        if not(isempty(protocolName))
+            for k = 1:length(aux)
+                if k == 1
+                    try
+                        mkdir(strcat(outDir, filesep, ...
+                            aux(k).SubjectName))
+                        mkdir(strcat(outDir, filesep, ...
+                            aux(i).SubjectName, filesep, ...
+                            aux(k).Condition))
+                    catch
+                    end
+                end
+                copyfile(strcat(inDir, filesep, aux(k).FileName), ...
+                    strcat(outDir, filesep, aux(k).FileName));
+                delete(strcat(inDir, filesep, aux(k).FileName));
+            end
         end
         scoutFiles = [scoutFiles, aux];
     end
