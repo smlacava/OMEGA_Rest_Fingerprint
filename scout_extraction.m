@@ -18,7 +18,7 @@ function scoutFiles = scout_extraction(sourceFiles, scout, ROIs, inDir, ...
     protocolName, outDir)
     
     scoutFiles = {};
-    if nargin < 3
+    if nargin < 4
         inDir = '';
         outDir = '';
         protocolName = [];
