@@ -14,10 +14,23 @@
 %   sources estimated from each subject's epoch (one cell per subject)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function sourceFiles = source_estimation(importFiles, anatCHECK)
+function sourceFiles = source_estimation(importFiles, anatCHECK, ...
+    measure)
     if nargin < 2
         anatCHECK = 0;
     end
+    if nargin < 3
+        measure = 'dspm2018';
+    end
+
+    if contains(string(measure), "dspm")
+        comment = 'dSPM: MEG';
+    elseif contains(string(measure), "sloreta")
+        comment = 'sLORETA: MEG';
+    else
+        comment = 'MN: MEG';
+    end
+
     sourceFiles = {};
     for i = 1:length(importFiles)
         if anatCHECK == 0
@@ -31,8 +44,8 @@ function sourceFiles = source_estimation(importFiles, anatCHECK)
         end
         sourceFiles = [sourceFiles, bst_process('CallProcess',...
             'process_inverse_2018', importFiles{i}, [], 'output', 2, ...
-            'inverse', struct('Comment', 'dSPM: MEG', 'InverseMethod', ...
-            'minnorm',  'InverseMeasure', 'dspm2018', 'SourceOrient', ...
+            'inverse', struct('Comment', comment, 'InverseMethod', ...
+            'minnorm',  'InverseMeasure', measure, 'SourceOrient', ...
             {{'fixed'}}, 'Loose', 0.2, 'UseDepth', 1, 'WeightExp', 0.5, ...
             'WeightLimit', 10, 'NoiseMethod', 'reg', 'NoiseReg', 0.1, ...
             'SnrMethod', 'fixed', 'SnrRms', 1e-06, 'SnrFixed', 3, ...

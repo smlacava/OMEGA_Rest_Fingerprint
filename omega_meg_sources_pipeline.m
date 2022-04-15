@@ -17,6 +17,9 @@ inDir = 'D:\MEG\OMEGA_OpenNeuro_raw - Copia';
 % Resulting data folder in bsDir
 ProtocolName = 'OmegaProva';
 
+% Inverse measure with minnorm method (amplitude, sloreta or dspm)
+measure = 'amplitude';
+
 % Parameters
 epTime = 15;
 nEpochs = 5;
@@ -62,8 +65,9 @@ filtFiles = preprocessing(rawFiles);
 cleanFiles = artifact_cleaning();
 importFiles = import_raws(cleanFiles, t, epTime, EventsTimeRange, fs, ...
     nEpochs);
-sourceFiles = source_estimation(importFiles);
+sourceFiles = source_estimation(importFiles, 0, measure);
 scoutFiles = scout_extraction(sourceFiles, scout, ROIs);
+
 for i = 1:length(subjects)
     srcSubject = subjects{i};
     newSourceFiles = sources_projection(sourceFiles, srcSubject, bsDir, ...
