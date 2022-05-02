@@ -14,16 +14,19 @@ bsDir = 'C:\Users\simon\OneDrive\Desktop\Ricerca\EEGLab\';
 % Dataset
 inDir = 'D:\MEG\OMEGA_OpenNeuro_raw - Copia';
 
+% Output directory
+outDir = char(strcat(inDir, filesep, 'results'));
+
 % Resulting data folder in bsDir
 ProtocolName = 'OmegaProva';
 
 % Inverse measure with minnorm method (amplitude, sloreta or dspm)
-measure = 'amplitude';
+srcType = 'amplitude';
 
 % Parameters
-epTime = 15;
+epTime = 2;
 nEpochs = 5;
-resample = 240;
+resample = 1000;
 EventsTimeRange = [-0.1, 3]; % Fixed
 % fband=[0.3, 0]; %low cut and high cut, if high cut is used, then highpass
 
@@ -65,16 +68,30 @@ filtFiles = preprocessing(rawFiles);
 cleanFiles = artifact_cleaning();
 importFiles = import_raws(cleanFiles, t, epTime, EventsTimeRange, fs, ...
     nEpochs);
-sourceFiles = source_estimation(importFiles, 0, measure);
-scoutFiles = scout_extraction(sourceFiles, scout, ROIs);
+%sourceFiles = source_estimation(importFiles, 0, measure);
+%scoutFiles = scout_extraction(sourceFiles, scout, ROIs);
 
-for i = 1:length(subjects)
+sourceFiles = source_estimation(importFiles, 0, srcType);
+scoutFiles = scout_extraction(sourceFiles, scout, ROIs, inDir, ...
+    ProtocolName, outDir);
+
+
+
+N = length(subjects);
+for i = 1:N
     srcSubject = subjects{i};
-    newSourceFiles = sources_projection(sourceFiles, srcSubject, bsDir, ...
-        ProtocolName);
-    projectedScoutFiles = scout_extraction_reprojected(newSourceFiles, ...
-        scout, ROIs, srcSubject, epTime);
+    newSourceFiles = sources_projection(sourceFiles, srcSubject, ...
+        inDir, ProtocolName, condition, srcType);
+    scout_extraction_reprojected(newSourceFiles, ...
+        scout, ROIs, srcSubject, epTime, inDir, ProtocolName, outDir);
 end
+% for i = 1:length(subjects)
+%     srcSubject = subjects{i};
+%     newSourceFiles = sources_projection(sourceFiles, srcSubject, bsDir, ...
+%         ProtocolName);
+%     projectedScoutFiles = scout_extraction_reprojected(newSourceFiles, ...
+%         scout, ROIs, srcSubject, epTime);
+% end
 disp(1)   
 
 
