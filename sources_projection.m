@@ -25,16 +25,28 @@ function newSourceFiles = sources_projection(subFiles, srcSubject, ...
     if nargin < 6
         srcType = "";
     end
+
+    if contains(string(srcType), "dspm")
+        measure = 'dSPM';
+    elseif contains(string(srcType), "sloreta")
+        measure = 'sLORETA';
+    else
+        measure = 'MN';
+    end
     
     dirFiles = dir(strcat(bsDir, filesep, ProtocolName, filesep, ...
         'data', filesep, srcSubject, filesep, srcSubject, condition));
     res = {};
     for i = 1:length(dirFiles)
         if contains(string(dirFiles(i).name), "results") && ...
-                contains(string(dirFiles(i).name), srcType)
+                contains(string(dirFiles(i).name), string(measure)) && ...
+                not(contains(dirFiles(i).date, 'mar-2022')) %avoid duplicates
             res = [res, strcat(srcSubject, filesep, srcSubject, ...
                     condition, filesep, dirFiles(i).name)];
         end
+    end
+    if str2double(res{1}(end-8:end-4))+1 ~= str2double(res{2}(end-8:end-4))
+        res(1) = [];
     end
     newSourceFiles = {};
     N = length(res);
@@ -44,16 +56,21 @@ function newSourceFiles = sources_projection(subFiles, srcSubject, ...
         else
             aux = subFiles(i);
         end
-        if strcmpi(string(aux(1).SubjectName), string(srcSubject))
+        if strcmpi(string(aux(i).SubjectName), string(srcSubject))
             continue;
         end
         auxProjected = {};
         for j = 1:N
-            destSurfFile = strcat(aux(1).SubjectName, filesep, ...
+            destSurfFile = strcat(aux(i).SubjectName, filesep, ...
                 'tess_cortex_pial_low.mat');
             auxProjected = [auxProjected, ...
                 bst_project_sources({res{j}}, destSurfFile)];
         end
         newSourceFiles = [newSourceFiles, {auxProjected}];
+    end
+    N = length(res);
+    for i = 1:N
+        delete(strcat(bsDir, filesep, ProtocolName, filesep, 'data', ...
+            filesep, res{i}))
     end
 end

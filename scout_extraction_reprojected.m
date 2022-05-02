@@ -112,14 +112,16 @@ function projectedScoutFiles = ...
     sInputs.ChannelFile = [];
     sInputs.ChannelTypes = [];
     projectedScoutFiles = {};
-    for i = 1:length(sourceFiles)
+    L = length(sourceFiles);
+    for i = 1:L
         auxFiles = sourceFiles{i};
         name = split(string(auxFiles{1}), '/');
         if length(name) == 1
             name = split(auxFiles, '\');
         end
         sInputs.SubjectName = char(name(1));
-        sInputs.SubjectFile = char(strcat(name(1), '/brainstormsubject.mat'));
+        sInputs.SubjectFile = char(strcat(name(1), filesep, ...
+            'brainstormsubject.mat'));
         sInputs.Condition = char(name(2));
         subFiles = {};
         for j = 1:length(auxFiles)
@@ -131,8 +133,9 @@ function projectedScoutFiles = ...
                 bst_process('Run', sProcess, sInputs, [], 1)];
             %delete(strcat(inDir, filesep, auxFiles{j}));
         end
+        nSub = length(subFiles);
         if not(isempty(protocolName))
-            for k = 1:length(subFiles)
+            for k = 1:nSub
                 if k == 1
                     try
                         mkdir(strcat(outDir, filesep, ...
@@ -148,6 +151,15 @@ function projectedScoutFiles = ...
                 delete(strcat(inDir, filesep, subFiles{k}.FileName));
             end
         end
-        projectedScoutFiles = [projectedScoutFiles, subFiles];
+        if nargout > 0
+            projectedScoutFiles = [projectedScoutFiles, subFiles];
+        end
+    end
+    N = length(sourceFiles);
+    M = length(sourceFiles{1});
+    for i = 1:N
+        for j = 1:M
+            delete(strcat(inDir, filesep, sourceFiles{i}{j}))
+        end
     end
 end
