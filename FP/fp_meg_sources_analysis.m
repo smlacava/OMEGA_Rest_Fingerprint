@@ -96,7 +96,7 @@ close all
 [anat_sameRHO_mn, anat_sameRHO_mdn, anat_sameRHO_sd] = ...
     describe(anat_sameRHO, del_idx);
 [anat_RHO_mn, anat_RHO_mdn, anat_RHO_sd] = ...
-    describe(default_RHO, del_idx);
+    describe(anat_RHO, del_idx);
 
 [RHO_mn, RHO_mdn, RHO_sd] = describe(RHO);
 [noRHO_mn, noRHO_mdn, noRHO_sd] = describe(noRHO);
@@ -173,7 +173,7 @@ function [single_RHO, single_prjRHO, single_bothRHO, single_sameRHO] = ...
 
             conn = {};
             projConn = {};
-            for j = 2:nEpochs+1
+            for j = 1:nEpochs
                 conn = [conn, conn_fun(data{j}')];
                 projConn = [projConn, conn_fun(projData{j}')];
             end
@@ -299,7 +299,7 @@ function [RHO, noRHO, noSameRHO, prjSameRHO, prj2SameRHO, prjRHO, ...
         end
         noData = access_data(dataDir, cases(s).name);
         noConn = {};
-        for j = 2:nEpochs+1
+        for j = 1:nEpochs
             noConn = [noConn, conn_fun(noData{j}')];
         end     
         single_RHO = 0;
@@ -331,7 +331,7 @@ function [RHO, noRHO, noSameRHO, prjSameRHO, prj2SameRHO, prjRHO, ...
                 %% DO ANALYSIS HERE
                 conn = {};
                 projConn = {};
-                for j = 2:nEpochs+1
+                for j = 1:nEpochs
                     conn = [conn, conn_fun(data{j}')];
                     projConn = [projConn, conn_fun(projData{j}')];
                 end
@@ -493,7 +493,7 @@ function [RHO, sameRHO] = paired_subject_default_analysis(dataDir, ...
         conn = {};
         projData = access_projected_data(dataDir, cases(s).name, ...
             srcSubject);
-        for j = 2:nEpochs+1
+        for j = 1:nEpochs
             conn = [conn, conn_fun(projData{j}')];
         end
         for i = s+1:N
@@ -505,7 +505,7 @@ function [RHO, sameRHO] = paired_subject_default_analysis(dataDir, ...
 
                 %% DO ANALYSIS HERE
                 conn2 = {};
-                for j = 2:nEpochs+1
+                for j = 1:nEpochs
                     conn2 = [conn2, conn_fun(projData2{j}')];
                 end
                 figure('Name',strcat(cases(s).name, " vs ", ...
@@ -596,7 +596,7 @@ function [RHO, sameRHO] = paired_subject_default_anat_analysis(dataDir, ...
         conn = {};
         projData = access_projected_data(dataDir, anatSubject, ...
             cases(s).name);
-        for j = 2:nEpochs+1
+        for j = 1:nEpochs
             conn = [conn, conn_fun(projData{j}')];
         end
         for i = s+1:N
@@ -608,7 +608,7 @@ function [RHO, sameRHO] = paired_subject_default_anat_analysis(dataDir, ...
 
                 %% DO ANALYSIS HERE
                 conn2 = {};
-                for j = 2:nEpochs+1
+                for j = 1:nEpochs
                     conn2 = [conn2, conn_fun(projData2{j}')];
                 end
                 figure('Name',strcat(cases(s).name, " vs ", ...

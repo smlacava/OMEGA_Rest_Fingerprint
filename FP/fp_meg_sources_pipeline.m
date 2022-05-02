@@ -10,15 +10,16 @@
 
 
 bsDir = 'C:\Users\simon\OneDrive\Desktop\Ricerca\EEGLab\';
-inDir = 'C:\Users\simon\Downloads\fp4';
-outDir = 'C:\Users\simon\Downloads\results';
-ProtocolName = 'fp4';
+inDir = 'D:\MEG\fp';
+outDir = 'D:\MEG\fp\results';
+ProtocolName = 'fp';
 epTime = 2;
 EventsTimeRange = [-0.1, 3];
 condition = '_task-rest_meg_clean_resample_high';
-srcType = "dSPM";
+srcType = 'amplitude';
 removeBadEpochs = 1;
 commonFLAG = 1; % Takes the minimum number of epochs per subject
+epMax = 52;
 
 scout = 'Desikan-Killiany';
 ROIs = {'bankssts L','bankssts R','caudalanteriorcingulate L',...
@@ -49,16 +50,17 @@ ROIs = {'bankssts L','bankssts R','caudalanteriorcingulate L',...
 if ~brainstorm('status')
     brainstorm nogui
 end
-importFiles = fp_import_files(strcat(inDir, filesep, ...
-    ProtocolName), epTime, removeBadEpochs, commonFLAG);
-sourceFiles = source_estimation(importFiles, 1);
+importFiles = fp_import_files(strcat(inDir, filesep, ProtocolName), ...
+    epTime, removeBadEpochs, commonFLAG, epMax);
+sourceFiles = source_estimation(importFiles, 1, srcType);
 scoutFiles = scout_extraction(sourceFiles, scout, ROIs, inDir, ...
     ProtocolName, outDir);
-for i = 1:length(importFiles)
-    srcSubject = importFiles{1}(1).FileName(1:9);
+N = length(importFiles);
+for i = 1:N
+    srcSubject = importFiles{i}(1).FileName(1:9);
     newSourceFiles = sources_projection(sourceFiles, srcSubject, ...
         inDir, ProtocolName, condition, srcType);
-    projectedScoutFiles = scout_extraction_reprojected(newSourceFiles, ...
+    scout_extraction_reprojected(newSourceFiles, ...
         scout, ROIs, srcSubject, epTime, inDir, ProtocolName, outDir);
 end
 %psdSourcesFiles = power_maps(sourceFiles);

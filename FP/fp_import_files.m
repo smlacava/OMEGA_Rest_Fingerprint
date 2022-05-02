@@ -1,16 +1,23 @@
-function importFiles = fp_import_files(inDir, epTime, removeBadEpochs, commonFLAG)
+function importFiles = fp_import_files(inDir, epTime, removeBadEpochs, commonFLAG, nMax)
     if nargin < 3
         removeBadEpochs = 0;
     end
     if nargin < 4
         commonFLAG = 0;
     end
+    if nargin < 5
+        nMax = -1;
+    end
     if not(contains(string(inDir), "data"))
         inDir = strcat(inDir, filesep, "data");
     end
     importFiles = {};
     dirs = dir(inDir);
-    minEp = 1000000000;
+    if nMax == -1
+        minEp = 1000000000;
+    else
+        minEp = nMax;
+    end
     for d = 1:length(dirs)
         if contains(string(dirs(d).name), "sub")
             sub_dirs = dir(strcat(inDir, filesep, dirs(d).name));
