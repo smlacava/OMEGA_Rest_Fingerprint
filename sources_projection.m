@@ -19,8 +19,8 @@
 
 function newSourceFiles = sources_projection(subFiles, srcSubject, ...
     bsDir, ProtocolName, condition, srcType)
-    if nargin < 5
-        condition = '_ses-01_task-rest_run-01_meg_notch_high';
+    if nargin < 5 
+        condition = [];
     end
     if nargin < 6
         srcType = "";
@@ -33,9 +33,20 @@ function newSourceFiles = sources_projection(subFiles, srcSubject, ...
     else
         measure = 'MN';
     end
-    
-    dirFiles = dir(strcat(bsDir, filesep, ProtocolName, filesep, ...
-        'data', filesep, srcSubject, filesep, srcSubject, condition));
+    subDir = strcat(bsDir, filesep, ProtocolName, filesep, ...
+        'data', filesep, srcSubject);
+    if isempty(condition)
+        dirFiles = dir(subDir);
+        auxN = length(srcSubject)+1;
+        for i = 1:length(dirFiles)
+            if not(contains(string(dirFiles(i).name), "@")) && ...
+                    contains(string(dirFiles(i).name), string(srcSubject))
+                condition = dirFiles(i).name(auxN:end);
+                break;
+            end
+        end
+    end
+    dirFiles = dir(strcat(subDir, filesep, srcSubject, condition));
     res = {};
     for i = 1:length(dirFiles)
         if contains(string(dirFiles(i).name), "results") && ...
