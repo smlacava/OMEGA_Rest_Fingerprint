@@ -1,4 +1,4 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Projects sources of a subject to the cortex of another subject
 % • Projects sources from each epochs of a chosen subject (srcSubject) onto
 %   cortices of other subjects
@@ -52,13 +52,19 @@ function newSourceFiles = sources_projection(subFiles, srcSubject, ...
         if contains(string(dirFiles(i).name), "results") && ...
                 contains(string(dirFiles(i).name), string(measure)) && ...
                 not(contains(dirFiles(i).date, 'mar-2022')) %avoid duplicates
-            res = [res, strcat(srcSubject, filesep, srcSubject, ...
+            %%%%
+            fname = strcat(dirFiles(i).folder, filesep, dirFiles(i).name);
+            clear DataFile
+            load(fname, 'DataFile') 
+            if not(isempty(DataFile))
+                res = [res, strcat(srcSubject, filesep, srcSubject, ...
                     condition, filesep, dirFiles(i).name)];
+            end
         end
     end
-    if str2double(res{1}(end-8:end-4))+1 ~= str2double(res{2}(end-8:end-4))
-        res(1) = [];
-    end
+    %if str2double(res{1}(end-8:end-4))+1 ~= str2double(res{2}(end-8:end-4))
+    %    res(1) = [];
+    %end
     newSourceFiles = {};
     N = length(res);
     for i = 1:length(subFiles)
