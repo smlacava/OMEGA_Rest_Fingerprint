@@ -7,6 +7,9 @@
 %   sources estimated from each subject's epoch (one cell per subject)
 % • scout is the type of scouts which have to be considered
 % • ROIs is the cell array containing the ROIs which have to be considered
+% • inDir is the Brainstorm project directory
+% • protocolName is the name of the protocol which will be used
+% • outDir is the output directory in which scouts have to be saved
 %
 % OUTPUT:
 % • scoutFiles is the cell array containing the structures related to
@@ -47,12 +50,25 @@ function scoutFiles = scout_extraction(sourceFiles, scout, ROIs, inDir, ...
                             aux(k).Condition))
                     catch
                     end
+                    descName = strcat(outDir, filesep, 'Description.mat');
+                    if not(exist(descName, 'file'))
+                        load(strcat(inDir, filesep, aux(k).FileName), ...
+                            'Description')
+                        save(descName, 'Description')
+                    end
                 end
-                copyfile(strcat(inDir, filesep, aux(k).FileName), ...
-                    strcat(outDir, filesep, aux(k).FileName));
+                vars = rmfield(load(strcat(inDir, filesep, ...
+                    aux(k).FileName)), {'Std', 'Time', 'nAvg', 'Leff', ...
+                    'Events', 'Atlas', 'History', 'DisplayUnits', ...
+                    'ChannelFlag', 'Description'});
+                save(strcat(outDir, filesep, aux(k).FileName), ...
+                    '-struct', 'vars');
                 delete(strcat(inDir, filesep, aux(k).FileName));
+
             end
         end
-        scoutFiles = [scoutFiles, aux];
+        if nargout > 0
+            scoutFiles = [scoutFiles, aux];
+        end
     end
 end

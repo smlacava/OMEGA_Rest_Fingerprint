@@ -10,6 +10,9 @@
 % • ROIs is the cell array containing the ROIs which have to be considered
 % • srcSubject is the subject from which sources have to be projected
 % • epTime is the time of each epoch
+% • inDir is the Brainstorm project directory
+% • protocolName is the name of the protocol which will be used
+% • outDir is the output directory in which scouts have to be saved
 % • iStudy is the number of operations performed on the Brainstorm protocol
 %   (optional)
 %
@@ -30,6 +33,8 @@ function projectedScoutFiles = ...
         outDir = '';
         protocolName = [];
     end
+
+    %% Reproduction of Brainstorm's data and process structures
     outDir = strcat(outDir, filesep, protocolName);
     inDir = strcat(inDir, filesep, protocolName, filesep, 'data');
     sProcess = struct();
@@ -111,6 +116,8 @@ function projectedScoutFiles = ...
     sInputs.DataFile = [];
     sInputs.ChannelFile = [];
     sInputs.ChannelTypes = [];
+
+    %% Scout extraction from projected sources
     projectedScoutFiles = {};
     L = length(sourceFiles);
     for i = 1:L
@@ -119,6 +126,7 @@ function projectedScoutFiles = ...
         if length(name) == 1
             name = split(auxFiles, '\');
         end
+        
         sInputs.SubjectName = char(name(1));
         sInputs.SubjectFile = char(strcat(name(1), filesep, ...
             'brainstormsubject.mat'));
@@ -133,6 +141,8 @@ function projectedScoutFiles = ...
                 bst_process('Run', sProcess, sInputs, [], 1)];
             %delete(strcat(inDir, filesep, auxFiles{j}));
         end
+
+        %% Saving the only useful data in another directory
         nSub = length(subFiles);
         if not(isempty(protocolName))
             for k = 1:nSub
@@ -146,8 +156,12 @@ function projectedScoutFiles = ...
                     catch
                     end
                 end
-                copyfile(strcat(inDir, filesep, subFiles{k}.FileName), ...
-                    strcat(outDir, filesep, subFiles{k}.FileName));
+                vars = rmfield(load(strcat(inDir, filesep, ...
+                    subFiles{k}.FileName)), {'Std', 'Time', 'nAvg', ...
+                    'Leff', 'Events', 'Atlas', 'History', ...
+                    'DisplayUnits', 'ChannelFlag', 'Description'});
+                save(strcat(outDir, filesep, subFiles{k}.FileName), ...
+                    '-struct', 'vars');
                 delete(strcat(inDir, filesep, subFiles{k}.FileName));
             end
         end
@@ -155,6 +169,8 @@ function projectedScoutFiles = ...
             projectedScoutFiles = [projectedScoutFiles, subFiles];
         end
     end
+
+    %% Removing unuseful files
     N = length(sourceFiles);
     M = length(sourceFiles{1});
     for i = 1:N

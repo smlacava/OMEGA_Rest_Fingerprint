@@ -11,6 +11,8 @@
 % • srcSubject is the subject from which sources have to be projected
 % • bsDir is the directory containing the Brainstorm protocols
 % • ProtocolName is the name of the protocol which will be used
+% • condition identifies the folder of preprocessed data
+% • srcType is the type of source estimation measure
 %
 % OUTPUT:
 % • newSourceFiles is the cell array containing the names of the files
@@ -35,6 +37,8 @@ function newSourceFiles = sources_projection(subFiles, srcSubject, ...
     end
     subDir = strcat(bsDir, filesep, ProtocolName, filesep, ...
         'data', filesep, srcSubject);
+
+    % Searches for imported (i.e., non raw) data directories
     if isempty(condition)
         dirFiles = dir(subDir);
         auxN = length(srcSubject)+1;
@@ -49,10 +53,12 @@ function newSourceFiles = sources_projection(subFiles, srcSubject, ...
     dirFiles = dir(strcat(subDir, filesep, srcSubject, condition));
     res = {};
     for i = 1:length(dirFiles)
+        % Searches for projectable sources (the ones computed on the
+        % average are not projectable), avoiding doplicates from multiple
+        % trials
         if contains(string(dirFiles(i).name), "results") && ...
                 contains(string(dirFiles(i).name), string(measure)) && ...
-                not(contains(dirFiles(i).date, 'mar-2022')) %avoid duplicates
-            %%%%
+                not(contains(dirFiles(i).date, 'mar-2022'))
             fname = strcat(dirFiles(i).folder, filesep, dirFiles(i).name);
             clear DataFile
             load(fname, 'DataFile') 
@@ -62,13 +68,10 @@ function newSourceFiles = sources_projection(subFiles, srcSubject, ...
             end
         end
     end
-    %if str2double(res{1}(end-8:end-4))+1 ~= str2double(res{2}(end-8:end-4))
-    %    res(1) = [];
-    %end
     newSourceFiles = {};
     N = length(res);
     for i = 1:length(subFiles)
-        if iscell(subFiles)
+        if iscell(subFiles) % Compatibility across different versions
             aux = subFiles{i};
         else
             aux = subFiles(i);
@@ -85,6 +88,8 @@ function newSourceFiles = sources_projection(subFiles, srcSubject, ...
         end
         newSourceFiles = [newSourceFiles, {auxProjected}];
     end
+
+    %% Remotion of original sources when they are no more useful
     N = length(res);
     for i = 1:N
         delete(strcat(bsDir, filesep, ProtocolName, filesep, 'data', ...
