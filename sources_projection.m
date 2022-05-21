@@ -76,7 +76,7 @@ function newSourceFiles = sources_projection(subFiles, srcSubject, ...
         else
             aux = subFiles(i);
         end
-        if strcmpi(string(aux(i).SubjectName), string(srcSubject))
+        if strcmpi(string(aux(1).SubjectName), string(srcSubject))
             continue;
         end
         auxProjected = {};
