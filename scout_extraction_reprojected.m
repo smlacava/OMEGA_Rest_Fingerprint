@@ -121,6 +121,7 @@ function projectedScoutFiles = ...
     projectedScoutFiles = {};
     L = length(sourceFiles);
     for i = 1:L
+        % Reproduction of the Brainstorm's structure for the single subject
         auxFiles = sourceFiles{i};
         name = split(string(auxFiles{1}), '/');
         if length(name) == 1
@@ -133,13 +134,13 @@ function projectedScoutFiles = ...
         sInputs.Condition = char(name(2));
         subFiles = {};
         for j = 1:length(auxFiles)
+            % Reproduction of the Brainstorm's structure of the single file
             sInputs.iStudy=sInputs.iStudy+1;
             sInputs.Comment = char(strcat(srcSubject, '/Raw (', ...
                 string((j-1)*epTime), '.00s,', string(j*epTime), '.00s)'));
             sInputs.FileName = auxFiles{j};
             subFiles = [subFiles, ...
                 bst_process('Run', sProcess, sInputs, [], 1)];
-            %delete(strcat(inDir, filesep, auxFiles{j}));
         end
 
         %% Saving the only useful data in another directory
