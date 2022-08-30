@@ -28,10 +28,10 @@
 %% TO ADD:
 % - A check when using sources on their own anatomy to see if epochs are
 %   bad (brainstorm study)
-bsDir = 'D:\Ricerca';
-ProtocolName = 'FP_MOUS_res';
+bsDir = 'D:\FP_MOUS_res.tar';
+ProtocolName = 'fp_Mous_results';
 epTime = 2;
-nEpochs = 10;
+nEpochs = 10;    %51
 conn_fun = "AEC";%@amplitude_envelope_correlation_orth;
 scatter_view = 0;
 
